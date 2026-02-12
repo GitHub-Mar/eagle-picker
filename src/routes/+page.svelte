@@ -4,7 +4,7 @@
 
 	let { data, form } = $props();
 
-	const DEADLINE = new Date('2026-11-23T20:00:00');
+	const DEADLINE = new Date('2026-02-23T20:00:00');
 	const INSTAGRAM_MENU = 'https://www.instagram.com/p/DItX5KfIw3Z/?img_index=1';
 
 	let name = $state('');
