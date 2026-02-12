@@ -7,20 +7,15 @@
 	const DEADLINE = new Date('2026-11-23T20:00:00');
 	const INSTAGRAM_MENU = 'https://www.instagram.com/p/DItX5KfIw3Z/?img_index=1';
 
-	const people = [
-		'Person 1', 'Person 2', 'Person 3', 'Person 4', 'Person 5',
-		'Person 6', 'Person 7', 'Person 8', 'Person 9', 'Person 10',
-		'Person 11', 'Person 12', 'Person 13', 'Person 14', 'Person 15',
-		'Person 16', 'Person 17', 'Person 18'
-	];
-
-	let selectedName = $state('');
-	let customName = $state('');
+	let name = $state('');
 	let quantities: Record<string, number> = $state({});
 	let countdown = $state('');
+	let openSections: Record<string, boolean> = $state(
+		Object.fromEntries(menu.map((cat) => [cat.name, false]))
+	);
 
-	function getName() {
-		return selectedName === '__custom__' ? customName.trim() : selectedName;
+	function toggleSection(sectionName: string) {
+		openSections[sectionName] = !openSections[sectionName];
 	}
 
 	function updateCountdown() {
@@ -74,6 +69,12 @@
 		}
 		return total.toFixed(2);
 	}
+
+	function sectionItemCount(categoryName: string) {
+		const cat = menu.find((c) => c.name === categoryName);
+		if (!cat) return 0;
+		return cat.items.reduce((sum, item) => sum + (quantities[item.id] ?? 0), 0);
+	}
 </script>
 
 <svelte:head>
@@ -91,7 +92,7 @@
 
 <div class="max-w-2xl mx-auto px-4 py-8">
 	<h1 class="text-3xl font-bold text-center mb-2">Namo Eat</h1>
-	<p class="text-zinc-400 text-center mb-2">Vietnamese & Thai Street Food &mdash; Group Pre-Order</p>
+	<p class="text-zinc-400 text-center mb-2">Let's go eat some Thai food!</p>
 	<p class="text-center mb-8">
 		<a
 			href={INSTAGRAM_MENU}
@@ -119,31 +120,17 @@
 			await update();
 		};
 	}}>
-		<!-- Name Selection -->
+		<!-- Name Input -->
 		<div class="mb-8">
-			<label for="name-select" class="block text-sm font-medium text-zinc-300 mb-2">Your Name</label>
-			<select
-				id="name-select"
-				bind:value={selectedName}
+			<label for="name-input" class="block text-sm font-medium text-zinc-300 mb-2">Your Name</label>
+			<input
+				id="name-input"
+				type="text"
+				name="name"
+				bind:value={name}
+				placeholder="Enter your name"
 				class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-			>
-				<option value="">Select your name...</option>
-				{#each people as person}
-					<option value={person}>{person}</option>
-				{/each}
-				<option value="__custom__">Other (type your name)</option>
-			</select>
-
-			{#if selectedName === '__custom__'}
-				<input
-					type="text"
-					bind:value={customName}
-					placeholder="Enter your name"
-					class="mt-2 w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-				/>
-			{/if}
-
-			<input type="hidden" name="name" value={getName()} />
+			/>
 		</div>
 
 		{#if form?.error}
@@ -154,47 +141,63 @@
 
 		<!-- Menu -->
 		{#each menu as category}
-			<div class="mb-8">
-				<h2 class="text-xl font-bold text-amber-400 mb-4 border-b border-zinc-800 pb-2">
-					{category.name}
-				</h2>
-				<div class="space-y-3">
-					{#each category.items as item}
-						<div class="flex items-center justify-between bg-zinc-900 rounded-lg px-4 py-3">
-							<div class="flex-1 mr-4">
-								<span class="text-zinc-100">{item.name}</span>
-								{#if item.tags}
-									{#each item.tags as tag}
-										<span class="ml-2 text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">
-											{tag}
-										</span>
-									{/each}
-								{/if}
-								<span class="text-zinc-400 ml-2">&pound;{item.price.toFixed(2)}</span>
+			<div class="mb-4">
+				<button
+					type="button"
+					onclick={() => toggleSection(category.name)}
+					class="w-full flex items-center justify-between text-xl font-bold text-amber-400 border-b border-zinc-800 pb-2 mb-2 cursor-pointer"
+				>
+					<span>
+						{category.name}
+						{#if sectionItemCount(category.name) > 0}
+							<span class="ml-2 text-sm bg-amber-600 text-white px-2 py-0.5 rounded-full font-medium">
+								{sectionItemCount(category.name)}
+							</span>
+						{/if}
+					</span>
+					<span class="text-zinc-500 text-lg transition-transform" class:rotate-180={openSections[category.name]}>
+						&#9660;
+					</span>
+				</button>
+				{#if openSections[category.name]}
+					<div class="space-y-3">
+						{#each category.items as item}
+							<div class="flex items-center justify-between bg-zinc-900 rounded-lg px-4 py-3">
+								<div class="flex-1 mr-4">
+									<span class="text-zinc-100">{item.name}</span>
+									{#if item.tags}
+										{#each item.tags as tag}
+											<span class="ml-2 text-xs bg-green-900 text-green-300 px-1.5 py-0.5 rounded">
+												{tag}
+											</span>
+										{/each}
+									{/if}
+									<span class="text-zinc-400 ml-2">&pound;{item.price.toFixed(2)}</span>
+								</div>
+								<div class="flex items-center gap-3">
+									<button
+										type="button"
+										onclick={() => decrement(item.id)}
+										class="w-8 h-8 rounded-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 flex items-center justify-center text-lg font-bold transition-colors"
+									>
+										-
+									</button>
+									<span class="w-6 text-center font-mono text-lg">
+										{quantities[item.id] ?? 0}
+									</span>
+									<input type="hidden" name="qty_{item.id}" value={quantities[item.id] ?? 0} />
+									<button
+										type="button"
+										onclick={() => increment(item.id)}
+										class="w-8 h-8 rounded-full bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center text-lg font-bold transition-colors"
+									>
+										+
+									</button>
+								</div>
 							</div>
-							<div class="flex items-center gap-3">
-								<button
-									type="button"
-									onclick={() => decrement(item.id)}
-									class="w-8 h-8 rounded-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 flex items-center justify-center text-lg font-bold transition-colors"
-								>
-									-
-								</button>
-								<span class="w-6 text-center font-mono text-lg">
-									{quantities[item.id] ?? 0}
-								</span>
-								<input type="hidden" name="qty_{item.id}" value={quantities[item.id] ?? 0} />
-								<button
-									type="button"
-									onclick={() => increment(item.id)}
-									class="w-8 h-8 rounded-full bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center text-lg font-bold transition-colors"
-								>
-									+
-								</button>
-							</div>
-						</div>
-					{/each}
-				</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/each}
 
