@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { DATABASE_URL } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export interface OrderItem {
 	itemId: string;
@@ -13,7 +13,7 @@ export interface Order {
 }
 
 function sql() {
-	return neon(DATABASE_URL);
+	return neon(env.DATABASE_URL!);
 }
 
 export async function initDb(): Promise<void> {
