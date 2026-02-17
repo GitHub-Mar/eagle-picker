@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { menu } from '$lib/menu';
 	import { slide, fly, scale } from 'svelte/transition';
 	import { quintOut, elasticOut } from 'svelte/easing';
@@ -40,13 +42,30 @@
 		return () => clearInterval(interval);
 	});
 
+	// Auto-load existing order from localStorage on return visit
 	$effect(() => {
-		if (data.existingOrder) {
+		const saved = localStorage.getItem('eagle-picker-name');
+		if (saved && !page.url.searchParams.has('name')) {
+			goto(`?name=${encodeURIComponent(saved)}`, { replaceState: true });
+		}
+	});
+
+	// Pre-fill name and items when editing an existing order
+	$effect(() => {
+		if (data.existingOrder && data.existingName) {
+			name = data.existingName;
 			for (const item of data.existingOrder.items) {
 				quantities[item.itemId] = item.quantity;
 			}
 		}
 	});
+
+	function clearSavedOrder() {
+		localStorage.removeItem('eagle-picker-name');
+		name = '';
+		quantities = {};
+		goto('/', { replaceState: true });
+	}
 
 	function increment(id: string) {
 		quantities[id] = (quantities[id] ?? 0) + 1;
@@ -153,10 +172,29 @@
 	{/if}
 
 	<form method="POST" action="?/submit" use:enhance={() => {
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			await update({ reset: false });
+			if (result.type === 'success') {
+				localStorage.setItem('eagle-picker-name', name);
+			}
 		};
 	}}>
+		{#if data.existingOrder}
+			<div
+				class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-blue-700 text-sm flex items-center justify-between gap-3"
+				in:fly={{ y: -10, duration: 300 }}
+			>
+				<span>Editing your existing order. Changes will replace your previous order.</span>
+				<button
+					type="button"
+					onclick={clearSavedOrder}
+					class="text-blue-500 hover:text-blue-700 underline whitespace-nowrap transition-colors"
+				>
+					Order as someone else
+				</button>
+			</div>
+		{/if}
+
 		<!-- Name Input -->
 		<div class="mb-8">
 			<label for="name-input" class="block text-sm font-medium text-zinc-700 mb-2">Your Name</label>
@@ -261,7 +299,7 @@
 					type="submit"
 					class="w-full bg-gradient-to-r from-thai-red to-primary hover:from-thai-red-light hover:to-primary-hover text-white font-bold py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
 				>
-					Submit Order
+					{data.existingOrder ? 'Update Order' : 'Submit Order'}
 				</button>
 			</div>
 		{/if}

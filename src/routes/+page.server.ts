@@ -16,9 +16,9 @@ export const load: PageServerLoad = async ({ url }) => {
 	if (rawName) {
 		const name = sanitizeName(rawName);
 		const existing = name ? await getOrder(name) : null;
-		return { existingOrder: existing };
+		return { existingOrder: existing, existingName: name || null };
 	}
-	return { existingOrder: null };
+	return { existingOrder: null, existingName: null };
 };
 
 export const actions: Actions = {
