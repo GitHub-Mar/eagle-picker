@@ -1,19 +1,25 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Thai flag palette */
-  --color-thai-red: #A51931;
-  --color-thai-red-light: #DC2626;
-  --color-thai-blue: #1E3A8A;
-  --color-thai-blue-light: #2563EB;
-  --color-thai-blue-vivid: #3B82F6;
-  --color-thai-white: #F8FAFC;
+  /* Dracula base */
+  --color-surface: #282A36;
+  --color-surface-hover: #44475A;
+  --color-surface-alt: #21222C;
+  --color-border: #44475A;
+  --color-border-light: #6272A4;
 
-  /* Semantic colors */
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
-  --color-secondary: #A51931;
-  --color-secondary-hover: #DC2626;
+  /* Dracula accents */
+  --color-primary: #BD93F9;
+  --color-primary-hover: #CFA9FF;
+  --color-primary-soft: rgba(189, 147, 249, 0.15);
+  --color-secondary: #FF79C6;
+  --color-secondary-hover: #FF92D0;
+  --color-accent: #8BE9FD;
+
+  /* Dracula text */
+  --color-text: #F8F8F2;
+  --color-text-secondary: #BCC2CD;
+  --color-text-muted: #6272A4;
 }
 
 /* Keyframe animations */
@@ -36,18 +42,19 @@
   animation: checkmark-draw 0.6s ease-out 0.3s forwards;
 }
 
-.thai-gradient-bar {
-  background: linear-gradient(90deg, #A51931 0%, #A51931 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #1E3A8A 66.6%, #1E3A8A 100%);
-  height: 4px;
+.accent-gradient-bar {
+  background: #BD93F9;
+  height: 3px;
 }
 
 .card {
-  background: white;
+  background: var(--color-surface);
   border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e4e4e7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-border);
 }
 
 .card-hover:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--color-border-light);
 }

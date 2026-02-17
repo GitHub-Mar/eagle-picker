@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { menu } from '$lib/menu';
+	import { menu, getItemById } from '$lib/menu';
 	import { slide, fly, scale } from 'svelte/transition';
 	import { quintOut, elasticOut } from 'svelte/easing';
 
@@ -13,6 +13,8 @@
 
 	let name = $state('');
 	let quantities: Record<string, number> = $state({});
+	let originalQuantities: Record<string, number> | null = $state(null);
+	let submitting = $state(false);
 	let countdown = $state('');
 	let openSections: Record<string, boolean> = $state(
 		Object.fromEntries(menu.map((cat) => [cat.name, false]))
@@ -50,13 +52,20 @@
 		}
 	});
 
-	// Pre-fill name and items when editing an existing order
+	// Pre-fill name and items when editing an existing order, or reset when switching users
 	$effect(() => {
 		if (data.existingOrder && data.existingName) {
 			name = data.existingName;
+			const snapshot: Record<string, number> = {};
 			for (const item of data.existingOrder.items) {
 				quantities[item.itemId] = item.quantity;
+				snapshot[item.itemId] = item.quantity;
 			}
+			originalQuantities = snapshot;
+		} else if (!data.existingName) {
+			name = '';
+			quantities = {};
+			originalQuantities = null;
 		}
 	});
 
@@ -64,7 +73,17 @@
 		localStorage.removeItem('eagle-picker-name');
 		name = '';
 		quantities = {};
+		originalQuantities = null;
 		goto('/', { replaceState: true });
+	}
+
+	function hasChanges(): boolean {
+		if (!originalQuantities) return true;
+		const allIds = new Set([...Object.keys(quantities), ...Object.keys(originalQuantities)]);
+		for (const id of allIds) {
+			if ((quantities[id] ?? 0) !== (originalQuantities[id] ?? 0)) return true;
+		}
+		return false;
 	}
 
 	function increment(id: string) {
@@ -97,7 +116,7 @@
 		return cat.items.reduce((sum, item) => sum + (quantities[item.id] ?? 0), 0);
 	}
 
-	const confettiColors = ['#A51931', '#2563EB', '#F59E0B', '#1E3A8A'];
+	const confettiColors = ['#BD93F9', '#FF79C6', '#8BE9FD', '#50FA7B'];
 </script>
 
 <svelte:head>
@@ -105,7 +124,7 @@
 </svelte:head>
 
 <!-- Countdown Banner -->
-<div class="bg-gradient-to-r from-thai-red via-thai-blue to-thai-red text-white text-center py-3 px-4 font-semibold sticky top-1 z-50 shadow-md">
+<div class="bg-primary text-white text-center py-3 px-4 font-semibold sticky top-1 z-50 shadow-md">
 	{#if countdown === 'Orders are closed!'}
 		Orders are closed!
 	{:else}
@@ -114,10 +133,10 @@
 </div>
 
 <div class="max-w-2xl mx-auto px-4 py-8">
-	<h1 class="text-4xl font-extrabold text-center mb-2 bg-gradient-to-r from-thai-red via-thai-blue to-primary bg-clip-text text-transparent">
+	<h1 class="text-4xl font-extrabold text-center mb-2 text-text">
 		Namo Eat
 	</h1>
-	<p class="text-zinc-500 text-center mb-2">Let's go eat some Thai food!</p>
+	<p class="text-text-muted text-center mb-2">Let's go eat some Thai food!</p>
 	<p class="text-center mb-8">
 		<a
 			href={INSTAGRAM_MENU}
@@ -135,13 +154,13 @@
 			in:scale={{ duration: 500, start: 0.85, easing: elasticOut }}
 		>
 			<!-- Animated checkmark circle -->
-			<div class="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+			<div class="mx-auto w-16 h-16 rounded-full bg-primary-soft flex items-center justify-center mb-4">
 				<svg class="w-8 h-8" viewBox="0 0 24 24" fill="none">
-					<circle cx="12" cy="12" r="10" stroke="#2563EB" stroke-width="2" opacity="0.3" />
+					<circle cx="12" cy="12" r="10" stroke="#BD93F9" stroke-width="2" opacity="0.3" />
 					<path
 						class="animate-checkmark"
 						d="M7 13l3 3 7-7"
-						stroke="#2563EB"
+						stroke="#BD93F9"
 						stroke-width="2.5"
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -150,8 +169,8 @@
 			</div>
 
 			<p class="text-primary text-xl font-bold">Order submitted!</p>
-			<p class="text-zinc-600 mt-2">Thanks {form.name}, your order has been saved.</p>
-			<p class="text-zinc-400 mt-2 text-sm">You can update your order anytime before the deadline.</p>
+			<p class="text-text-secondary mt-2">Thanks {form.name}, your order has been saved.</p>
+			<p class="text-text-muted mt-2 text-sm">You can update your order anytime before the deadline.</p>
 			<a href="/summary" class="inline-block mt-4 text-primary hover:text-primary-hover underline transition-colors">
 				View group summary
 			</a>
@@ -172,45 +191,61 @@
 	{/if}
 
 	<form method="POST" action="?/submit" use:enhance={() => {
+		submitting = true;
 		return async ({ result, update }) => {
+			submitting = false;
 			await update({ reset: false });
 			if (result.type === 'success') {
 				localStorage.setItem('eagle-picker-name', name);
+				window.scrollTo({ top: 0, behavior: 'smooth' });
 			}
 		};
 	}}>
 		{#if data.existingOrder}
 			<div
-				class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6 text-blue-700 text-sm flex items-center justify-between gap-3"
+				class="bg-primary-soft border border-primary/30 rounded-xl p-3 mb-6 text-primary text-sm"
 				in:fly={{ y: -10, duration: 300 }}
 			>
-				<span>Editing your existing order. Changes will replace your previous order.</span>
-				<button
-					type="button"
-					onclick={clearSavedOrder}
-					class="text-blue-500 hover:text-blue-700 underline whitespace-nowrap transition-colors"
-				>
-					Order as someone else
-				</button>
+				<div class="flex items-center justify-between gap-3 mb-2">
+					<span class="font-medium">Your current order</span>
+					<button
+						type="button"
+						onclick={clearSavedOrder}
+						class="text-primary hover:text-primary-hover underline whitespace-nowrap transition-colors"
+					>
+						Order as someone else
+					</button>
+				</div>
+				<ul class="text-primary/80 space-y-0.5">
+					{#each data.existingOrder.items as orderItem}
+						{@const menuItem = getItemById(orderItem.itemId)}
+						{#if menuItem}
+							<li class="flex justify-between">
+								<span>{orderItem.quantity} &times; {menuItem.name}</span>
+								<span>&pound;{(menuItem.price * orderItem.quantity).toFixed(2)}</span>
+							</li>
+						{/if}
+					{/each}
+				</ul>
 			</div>
 		{/if}
 
 		<!-- Name Input -->
 		<div class="mb-8">
-			<label for="name-input" class="block text-sm font-medium text-zinc-700 mb-2">Your Name</label>
+			<label for="name-input" class="block text-sm font-medium text-text-secondary mb-2">Your Name</label>
 			<input
 				id="name-input"
 				type="text"
 				name="name"
 				bind:value={name}
 				placeholder="Enter your name"
-				class="w-full bg-white border border-zinc-300 rounded-xl px-4 py-3 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all duration-200 shadow-sm"
+				class="w-full bg-surface border border-border rounded-xl px-4 py-3 text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all duration-200 shadow-sm"
 			/>
 		</div>
 
 		{#if form?.error}
 			<div
-				class="bg-red-50 border border-red-200 rounded-xl p-3 mb-6 text-red-700 text-sm"
+				class="bg-[#FF5555]/10 border border-[#FF5555]/30 rounded-xl p-3 mb-6 text-[#FF5555] text-sm"
 				in:fly={{ y: -10, duration: 300 }}
 			>
 				{form.error}
@@ -227,7 +262,7 @@
 				<button
 					type="button"
 					onclick={() => toggleSection(category.name)}
-					class="w-full flex items-center justify-between text-xl font-bold text-thai-blue border-b border-zinc-200 pb-2 mb-2 cursor-pointer hover:text-primary transition-colors group"
+					class="w-full flex items-center justify-between text-xl font-bold text-text border-b border-border pb-2 mb-2 cursor-pointer hover:text-primary transition-colors group"
 				>
 					<span>
 						{category.name}
@@ -238,7 +273,7 @@
 						{/if}
 					</span>
 					<span
-						class="text-zinc-400 text-lg transition-transform duration-300 ease-out group-hover:text-primary"
+						class="text-text-muted text-lg transition-transform duration-300 ease-out group-hover:text-primary"
 						class:rotate-180={openSections[category.name]}
 					>
 						&#9660;
@@ -247,32 +282,32 @@
 				{#if openSections[category.name]}
 					<div class="space-y-2" transition:slide={{ duration: 300, easing: quintOut }}>
 						{#each category.items as item}
-							<div class="flex items-center justify-between card card-hover rounded-xl px-4 py-3 transition-shadow duration-200">
+							<div class="flex items-center justify-between card card-hover rounded-xl px-4 py-3 transition-all duration-200">
 								<div class="flex-1 mr-4">
 									<div>
-										<span class="text-zinc-800 font-medium">{item.name}</span>
+										<span class="text-text font-medium">{item.name}</span>
 										{#if item.tags}
 											{#each item.tags as tag}
-												<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+												<span class="ml-2 text-xs bg-[#50FA7B]/15 text-[#50FA7B] px-1.5 py-0.5 rounded font-medium">
 													{tag}
 												</span>
 											{/each}
 										{/if}
-										<span class="text-zinc-500 ml-2">&pound;{item.price.toFixed(2)}</span>
+										<span class="text-text-muted ml-2">&pound;{item.price.toFixed(2)}</span>
 									</div>
 									{#if item.description}
-										<p class="text-zinc-400 text-xs mt-0.5">{item.description}</p>
+										<p class="text-text-muted text-xs mt-0.5">{item.description}</p>
 									{/if}
 								</div>
 								<div class="flex items-center gap-3">
 									<button
 										type="button"
 										onclick={() => decrement(item.id)}
-										class="w-8 h-8 rounded-full bg-zinc-200 hover:bg-zinc-300 text-zinc-600 flex items-center justify-center text-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95"
+										class="w-8 h-8 rounded-full bg-surface-alt hover:bg-border text-text-secondary flex items-center justify-center text-lg font-bold transition-all duration-200 hover:scale-110 active:scale-95"
 									>
 										-
 									</button>
-									<span class="w-6 text-center font-mono text-lg text-zinc-700">
+									<span class="w-6 text-center font-mono text-lg text-text">
 										{quantities[item.id] ?? 0}
 									</span>
 									<button
@@ -293,25 +328,45 @@
 		<!-- Sticky Total & Submit -->
 		{#if totalItems() > 0}
 			<div
-				class="sticky bottom-4 bg-white rounded-xl p-4 shadow-lg border border-zinc-200"
+				class="sticky bottom-4 bg-surface rounded-xl p-4 shadow-lg border border-border"
 				transition:fly={{ y: 30, duration: 400, easing: quintOut }}
 			>
-				<div class="flex justify-between items-center mb-3">
-					<span class="text-zinc-600">{totalItems()} item{totalItems() > 1 ? 's' : ''}</span>
+				<div class="flex justify-between items-center" class:mb-3={hasChanges()}>
+					<span class="text-text-secondary">{totalItems()} item{totalItems() > 1 ? 's' : ''}</span>
 					<span class="text-xl font-bold text-primary">&pound;{totalPrice()}</span>
 				</div>
-				<button
-					type="submit"
-					class="w-full bg-gradient-to-r from-thai-red to-primary hover:from-thai-red-light hover:to-primary-hover text-white font-bold py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
-				>
-					{data.existingOrder ? 'Update Order' : 'Submit Order'}
-				</button>
+				{#if hasChanges()}
+					<button
+						type="submit"
+						disabled={submitting}
+						class="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{#if submitting}
+							Submitting…
+						{:else}
+							{data.existingOrder ? 'Update Order' : 'Submit Order'}
+						{/if}
+					</button>
+				{:else if data.existingOrder}
+					<p class="text-text-muted text-xs text-center mt-2 mb-1">Your current order</p>
+					<ul class="text-text-secondary text-sm space-y-0.5">
+						{#each data.existingOrder.items as orderItem}
+							{@const menuItem = getItemById(orderItem.itemId)}
+							{#if menuItem}
+								<li class="flex justify-between">
+									<span>{orderItem.quantity} &times; {menuItem.name}</span>
+									<span class="text-text-muted">&pound;{(menuItem.price * orderItem.quantity).toFixed(2)}</span>
+								</li>
+							{/if}
+						{/each}
+					</ul>
+				{/if}
 			</div>
 		{/if}
 	</form>
 
 	<div class="mt-8 text-center">
-		<a href="/summary" class="text-zinc-400 hover:text-primary underline text-sm transition-colors">
+		<a href="/summary" class="text-text-muted hover:text-primary underline text-sm transition-colors">
 			View group order summary
 		</a>
 	</div>
