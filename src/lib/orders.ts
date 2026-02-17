@@ -1,7 +1,5 @@
-import { getStore } from '@netlify/blobs';
-import { dev } from '$app/environment';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { neon } from '@neondatabase/serverless';
+import { DATABASE_URL } from '$env/static/private';
 
 export interface OrderItem {
 	itemId: string;
@@ -14,71 +12,58 @@ export interface Order {
 	updatedAt: string;
 }
 
-const LOCAL_FILE = join(process.cwd(), '.orders.json');
-
-function readLocal(): Record<string, Order> {
-	if (!existsSync(LOCAL_FILE)) return {};
-	try {
-		return JSON.parse(readFileSync(LOCAL_FILE, 'utf-8'));
-	} catch {
-		return {};
-	}
+function sql() {
+	return neon(DATABASE_URL);
 }
 
-function writeLocal(data: Record<string, Order>): void {
-	writeFileSync(LOCAL_FILE, JSON.stringify(data, null, 2));
+export async function initDb(): Promise<void> {
+	const db = sql();
+	await db`
+		CREATE TABLE IF NOT EXISTS orders (
+			name TEXT PRIMARY KEY,
+			items JSONB NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`;
 }
 
 export async function saveOrder(order: Order): Promise<void> {
-	if (dev) {
-		const data = readLocal();
-		data[order.name] = order;
-		writeLocal(data);
-		return;
-	}
-
-	const store = getStore('orders');
-	await store.setJSON(order.name, order);
+	const db = sql();
+	await db`
+		INSERT INTO orders (name, items, updated_at)
+		VALUES (${order.name}, ${JSON.stringify(order.items)}, ${order.updatedAt})
+		ON CONFLICT (name) DO UPDATE
+		SET items = ${JSON.stringify(order.items)}, updated_at = ${order.updatedAt}
+	`;
 }
 
 export async function getOrder(name: string): Promise<Order | null> {
-	if (dev) {
-		const data = readLocal();
-		return data[name] ?? null;
-	}
-
-	const store = getStore('orders');
-	try {
-		return await store.get(name, { type: 'json' }) as Order | null;
-	} catch {
-		return null;
-	}
+	const db = sql();
+	const rows = await db`
+		SELECT name, items, updated_at FROM orders WHERE name = ${name}
+	`;
+	if (rows.length === 0) return null;
+	const row = rows[0];
+	return {
+		name: row.name,
+		items: row.items as OrderItem[],
+		updatedAt: row.updated_at
+	};
 }
 
 export async function getAllOrders(): Promise<Order[]> {
-	if (dev) {
-		const data = readLocal();
-		return Object.values(data);
-	}
-
-	const store = getStore('orders');
-	const { blobs } = await store.list();
-	const orders: Order[] = [];
-	for (const blob of blobs) {
-		const order = await store.get(blob.key, { type: 'json' }) as Order;
-		if (order) orders.push(order);
-	}
-	return orders;
+	const db = sql();
+	const rows = await db`
+		SELECT name, items, updated_at FROM orders ORDER BY name
+	`;
+	return rows.map((row) => ({
+		name: row.name,
+		items: row.items as OrderItem[],
+		updatedAt: row.updated_at
+	}));
 }
 
 export async function deleteOrder(name: string): Promise<void> {
-	if (dev) {
-		const data = readLocal();
-		delete data[name];
-		writeLocal(data);
-		return;
-	}
-
-	const store = getStore('orders');
-	await store.delete(name);
+	const db = sql();
+	await db`DELETE FROM orders WHERE name = ${name}`;
 }
