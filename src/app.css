@@ -1,1 +1,53 @@
 @import 'tailwindcss';
+
+@theme {
+  /* Thai flag palette */
+  --color-thai-red: #A51931;
+  --color-thai-red-light: #DC2626;
+  --color-thai-blue: #1E3A8A;
+  --color-thai-blue-light: #2563EB;
+  --color-thai-blue-vivid: #3B82F6;
+  --color-thai-white: #F8FAFC;
+
+  /* Semantic colors */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-secondary: #A51931;
+  --color-secondary-hover: #DC2626;
+}
+
+/* Keyframe animations */
+@keyframes checkmark-draw {
+  0% { stroke-dashoffset: 50; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes float-particle {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-60px) rotate(180deg); opacity: 0; }
+}
+
+/* Utility classes */
+.animate-checkmark {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  animation: checkmark-draw 0.6s ease-out 0.3s forwards;
+}
+
+.thai-gradient-bar {
+  background: linear-gradient(90deg, #A51931 0%, #A51931 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #1E3A8A 66.6%, #1E3A8A 100%);
+  height: 4px;
+}
+
+.card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e4e4e7;
+}
+
+.card-hover:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
