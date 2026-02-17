@@ -249,15 +249,20 @@
 						{#each category.items as item}
 							<div class="flex items-center justify-between card card-hover rounded-xl px-4 py-3 transition-shadow duration-200">
 								<div class="flex-1 mr-4">
-									<span class="text-zinc-800 font-medium">{item.name}</span>
-									{#if item.tags}
-										{#each item.tags as tag}
-											<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
-												{tag}
-											</span>
-										{/each}
+									<div>
+										<span class="text-zinc-800 font-medium">{item.name}</span>
+										{#if item.tags}
+											{#each item.tags as tag}
+												<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+													{tag}
+												</span>
+											{/each}
+										{/if}
+										<span class="text-zinc-500 ml-2">&pound;{item.price.toFixed(2)}</span>
+									</div>
+									{#if item.description}
+										<p class="text-zinc-400 text-xs mt-0.5">{item.description}</p>
 									{/if}
-									<span class="text-zinc-500 ml-2">&pound;{item.price.toFixed(2)}</span>
 								</div>
 								<div class="flex items-center gap-3">
 									<button
