@@ -56,11 +56,13 @@
 	$effect(() => {
 		if (data.existingOrder && data.existingName) {
 			name = data.existingName;
+			const newQuantities: Record<string, number> = {};
 			const snapshot: Record<string, number> = {};
 			for (const item of data.existingOrder.items) {
-				quantities[item.itemId] = item.quantity;
+				newQuantities[item.itemId] = item.quantity;
 				snapshot[item.itemId] = item.quantity;
 			}
+			quantities = newQuantities;
 			originalQuantities = snapshot;
 		} else if (!data.existingName) {
 			name = '';
@@ -192,11 +194,12 @@
 
 	<form method="POST" action="?/submit" use:enhance={() => {
 		submitting = true;
+		const submittedName = name;
 		return async ({ result, update }) => {
 			submitting = false;
 			await update({ reset: false });
 			if (result.type === 'success') {
-				localStorage.setItem('eagle-picker-name', name);
+				localStorage.setItem('eagle-picker-name', submittedName);
 				window.scrollTo({ top: 0, behavior: 'smooth' });
 			}
 		};
